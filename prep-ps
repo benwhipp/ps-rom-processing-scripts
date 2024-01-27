@@ -1,0 +1,66 @@
+#!/usr/bin/bash
+
+# Function to handle errors
+error_handler() {
+    echo "An error occurred. Error on line $1."
+    exit 1
+}
+
+# Trap any errors and call error_handler
+trap 'error_handler $LINENO' ERR
+
+# Ask if we want to delete the archives
+echo "Delete the archives when finished? (y/n)"
+read deletearchives
+
+echo "Unzipping archives..."
+
+# Unzip .7z files, if any
+shopt -s nullglob
+for file in *.7z; do
+    7za x "./$file"
+done
+
+# Unzip .zip files, if any
+for file in *.zip; do
+    7za x "./$file"
+done
+shopt -u nullglob
+
+echo "Unzipped all archives."
+
+echo "Converting PS files to .chd format..."
+
+# Convert .cue files to .chd
+for f in ./*.cue; do
+    name=${f%.cue} # Remove '.cue' from file name
+    chdman createcd -i "$name.cue" -o "$name.chd" --force
+done
+
+echo "Converted all PS games to .chd."
+
+echo "Cleaning up old files..."
+
+# Remove .cue and .bin files
+rm -rf ./*.cue
+rm -rf ./*.bin
+
+echo "Files cleaned."
+
+# Delete archives if the user chose to
+if [ "$deletearchives" = "y" ] || [ "$deletearchives" = "Y" ]; then
+    echo "Deleting archives..."
+    rm -rf ./*.zip
+    rm -rf ./*.7z
+    echo "Archives deleted."
+fi
+
+echo "Files prepped."
+
+# Find files with 'disk' or 'disc' in their names
+echo "The following games have been processed and may be multi-disc. Run 'create-ps-playlist' to make these ready to play (if needed):"
+for file in *; do
+    if [[ "$file" == *"disk"* || "$file" == *"disc"* ]]; then
+        echo "$file"
+    fi
+done

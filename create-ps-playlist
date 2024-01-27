@@ -1,0 +1,79 @@
+#!/bin/bash
+
+# Step 1: Ask for the directory name
+echo "Enter a name for the new directory:"
+read directory
+
+# Step 2: Find files similar to the directory name, but exclude .7z and .zip files
+similar_files=()
+for file in *; do
+    if [[ -f "$file" && "$file" != "$directory" && "$file" != *.7z && "$file" != *.zip ]]; then
+        similar_files+=("$file")
+    fi
+done
+
+if [ ${#similar_files[@]} -eq 0 ]; then
+    echo "No files with that file name found. Showing all files in current directory."
+    for file in *; do
+            if [[ -f "$file" && "$file" != "$directory" && "$file" != *.7z && "$file" != *.zip ]]; then
+                similar_files+=("$file")
+            fi
+    done
+fi
+
+# Function to display the files with selected files in green
+display_files() {
+    for i in "${!similar_files[@]}"; do
+        if [[ " ${selected_files[@]} " =~ " ${similar_files[i]} " ]]; then
+            echo -e "\e[32m$((i+1))) ${similar_files[i]}\e[0m"
+        else
+            echo "$((i+1))) ${similar_files[i]}"
+        fi
+    done
+}
+
+# Step 3: Present a custom menu for file selection
+selected_files=()
+echo "Please select files to move to $directory."
+echo "Type the number of the file and press Enter. Type 'done' when finished."
+
+display_files
+
+while true; do
+    read -p "Select a file or 'done': " choice
+    if [[ "$choice" == "done" ]]; then
+        break
+    elif [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -le "${#similar_files[@]}" ]; then
+        file="${similar_files[$((choice-1))]}"
+        if [[ ! " ${selected_files[@]} " =~ " $file " ]]; then
+            selected_files+=("$file")
+            echo -e "\e[32m'$file' added to the list.\e[0m"
+        else
+            echo -e "\e[31m'$file' is already in the list.\e[0m"
+        fi
+    else
+        echo "Invalid selection. Try again."
+    fi
+    display_files
+done
+
+# Check if any files have been selected
+if [ ${#selected_files[@]} -eq 0 ]; then
+    echo "No files selected. Exiting."
+    exit 0
+fi
+
+# Step 4: Create the directory
+mkdir -p "$directory"
+
+# Move selected files to the new directory
+for file in "${selected_files[@]}"; do
+    mv "$file" "$directory/"
+done
+
+# Step 5: Create the .m3u file
+for f in "$directory"/*; do
+    echo "./$f" >> "${directory}.m3u"
+done
+
+echo "Playlist file created."
